@@ -8,7 +8,9 @@ public class UserResponse {
     private String name;
     private String email;
     private String role;
-    private boolean active;
+    private Boolean active;
+    private String message;
+    private User user;
 
     public static UserResponse to(User user){
         UserResponse userResponse = new UserResponse();

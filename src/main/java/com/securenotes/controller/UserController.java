@@ -2,6 +2,7 @@ package com.securenotes.controller;
 
 import com.securenotes.dto.CreateUserRequest;
 import com.securenotes.dto.LoginRequest;
+import com.securenotes.dto.LoginResponse;
 import com.securenotes.dto.UserResponse;
 import com.securenotes.model.User;
 import com.securenotes.repository.UserRepository;
@@ -25,9 +26,8 @@ public class UserController {
 
     @PostMapping("/signup")
     public ResponseEntity<UserResponse>signUp(@RequestBody CreateUserRequest createUserRequest){
-        User user = userService.create(createUserRequest);
-        UserResponse userResponse = UserResponse.to(user);
-        return ResponseEntity.ok(userResponse);
+
+        return ResponseEntity.ok(userService.create(createUserRequest));
     }
 
     @PutMapping("/verify-account")
@@ -42,7 +42,7 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginRequest>login(@RequestBody LoginRequest loginRequest){
+    public ResponseEntity<LoginResponse>login(@RequestBody LoginRequest loginRequest){
         return ResponseEntity.ok(userService.login(loginRequest));
     }
 

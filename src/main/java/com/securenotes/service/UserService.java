@@ -1,7 +1,8 @@
 package com.securenotes.service;
 import com.securenotes.dto.CreateUserRequest;
 import com.securenotes.dto.LoginRequest;
-import com.securenotes.exceptions.EmailAlreadyExistsException;
+import com.securenotes.dto.LoginResponse;
+import com.securenotes.dto.UserResponse;
 import com.securenotes.model.Token;
 import com.securenotes.model.User;
 import com.securenotes.repository.NotesRepository;
@@ -14,6 +15,7 @@ import jakarta.mail.MessagingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 @Service
 public class UserService {
@@ -51,20 +54,19 @@ public class UserService {
     @Autowired
     TokenRepository tokenRepository;
 
-    public User create(CreateUserRequest createUserRequest){
+    @Autowired
+    ExecutorService executorService;
+
+    public UserResponse create(CreateUserRequest createUserRequest){
         User existingUser = userRepository.findByEmail(createUserRequest.getEmail());
+        UserResponse userResponse = new UserResponse();
         if(existingUser != null){
-            throw new EmailAlreadyExistsException("User with email " + createUserRequest.getEmail() + " already exists"); // You can define a custom exception for this
+            userResponse.setMessage("Email Already Exists!");
+            return userResponse;
         }
 
         //otp related stuff
         String otp = otpUtil.generateOtp();
-        try{
-            emailUtil.sendOtpEmail(createUserRequest.getEmail(),otp);
-        }catch (MessagingException e){
-            throw new RuntimeException("Unable to send the otp, Please try again!");
-        }
-
 
         User user = new User();
         user.setEmail(createUserRequest.getEmail());
@@ -74,7 +76,38 @@ public class UserService {
         user.setOtp(passwordEncoder.encode(otp));
         user.setOtpGenerationTime(LocalDateTime.now());
 
-        return userRepository.save(user);
+//        try{
+//            emailUtil.sendOtpEmail(createUserRequest.getEmail(),otp);
+//        }catch (MessagingException e){
+//            throw new RuntimeException("Unable to send the otp, Please try again!");
+//        }
+
+        /*
+        Before: Email sending was done synchronously, meaning the process of sending an email blocked the main thread until the email was sent.
+        This added significant latency, especially if the email server was slow or experiencing delays.
+        After: By using ExecutorService to send the email asynchronously, the main thread can proceed with other operations without waiting for the email to be sent.
+        This reduces the overall time taken to complete the user creation process.
+         */
+
+        // Send OTP email asynchronously
+        executorService.submit(() -> {
+            try {
+                emailUtil.sendOtpEmail(createUserRequest.getEmail(), otp);
+            } catch (MessagingException e) {
+                // Log the exception and potentially retry or notify admin
+                e.printStackTrace();
+            }
+        });
+
+
+        userResponse.setMessage("Sign up successfull!!");
+        userResponse.setUser(user);
+        User userResult =userRepository.save(user);
+        return userResponse;
+    }
+    // Ensure to shut down the executor service appropriately
+    public void shutdown() {
+        executorService.shutdown();
     }
 
     public User getUserById(int id){
@@ -82,17 +115,24 @@ public class UserService {
     }
 
 
-    public LoginRequest login(LoginRequest loginRequest) {
+    public LoginResponse login(LoginRequest loginRequest) {
 
-        LoginRequest loginResponse = new LoginRequest();
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(),loginRequest.getPassword()));
+        LoginResponse loginResponse = new LoginResponse();
+        try{
+             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(),loginRequest.getPassword()));
+        }catch (AuthenticationException e){
+            loginResponse.setMessage("Wrong email or password");
+            return loginResponse;
+        }
         var user = userRepository.findByEmail(loginRequest.getEmail());
         var jwt = jwtUtils.generateToken(user);
         var refreshToken = jwtUtils.generateRefreshToken(new HashMap<>(), user);
 
         if(!user.isActive()){
-            throw new RuntimeException("User is not verified yet, Please verify your email...");
+            loginResponse.setMessage("Email is not verified yet, Please verify and retry!");
+            return loginResponse;
         }
+
 
         //revoke all tokens for a user
         revokeAllTokensByUser(user);
@@ -100,6 +140,7 @@ public class UserService {
         saveUserToken(user, jwt, refreshToken);
 
         loginResponse.setToken(jwt);
+        loginResponse.setMessage("Login Successfully!");
         loginResponse.setRefreshToken(refreshToken);
         loginResponse.setRole(user.getRole());
 
@@ -134,7 +175,7 @@ public class UserService {
         //checking otp from saved otp with entered otp
 
         if (passwordEncoder.matches(otp,user.getOtp())&& Duration.between(user.getOtpGenerationTime(),
-                LocalDateTime.now()).getSeconds() < (1 * 60)) {//checking time of otp
+                LocalDateTime.now()).getSeconds() < (2 * 60)) {//checking time of otp
             user.setActive(true);
             userRepository.save(user);
             return "OTP verified you can login";
@@ -149,15 +190,20 @@ public class UserService {
         }
 
         String otp = otpUtil.generateOtp();
-        try {
-            emailUtil.sendOtpEmail(email, otp);
-        } catch (MessagingException e) {
-            throw new RuntimeException("Unable to send otp please try again");
-        }
+        // Send OTP email asynchronously
+        executorService.submit(() -> {
+            try {
+                emailUtil.sendOtpEmail(email, otp);
+            } catch (MessagingException e) {
+                // Log the exception and potentially retry or notify admin
+                e.printStackTrace();
+                throw  new RuntimeException("unable to send otp please try again");
+            }
+        });
         user.setOtp(passwordEncoder.encode(otp));
         user.setOtpGenerationTime(LocalDateTime.now());
         userRepository.save(user);
-        return "Email sent... please verify account within 1 minute";
+        return "Email sent... please verify account within 2 minutes";
     }
 
 

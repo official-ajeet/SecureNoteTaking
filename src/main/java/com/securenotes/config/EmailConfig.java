@@ -7,6 +7,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 
 @Configuration
 public class EmailConfig {
@@ -36,5 +37,9 @@ public class EmailConfig {
         properties.put("mail.smtp.starttls.enable","true");
         return  javaMailSender;
 
+    }
+
+    public ExecutorService executorService{
+        return executorService.
     }
 }
