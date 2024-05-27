@@ -8,6 +8,7 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Configuration
 public class EmailConfig {
@@ -39,7 +40,8 @@ public class EmailConfig {
 
     }
 
-    public ExecutorService executorService{
-        return executorService.
+    @Bean
+    public ExecutorService executorService() {
+        return Executors.newFixedThreadPool(5); // Adjust the pool size as needed
     }
 }
