@@ -1,11 +1,13 @@
 package com.securenotes.controller;
 
 import com.securenotes.dto.CreateNoteRequest;
+import com.securenotes.dto.NotesResponse;
 import com.securenotes.model.Notes;
 import com.securenotes.model.User;
 import com.securenotes.repository.NotesRepository;
 import com.securenotes.service.NotesService;
 import com.securenotes.service.OurUserDetailService;
+import com.securenotes.utils.EncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,8 +26,15 @@ public class NotesController {
     OurUserDetailService ourUserDetailService;
 
     @PostMapping("/add")
-    public ResponseEntity<Notes> addNote(@RequestBody CreateNoteRequest createNoteRequest){
-        return ResponseEntity.ok(notesService.addNote(createNoteRequest) );
+    public ResponseEntity<NotesResponse> addNote(@RequestBody CreateNoteRequest createNoteRequest) throws Exception {
+        Notes notes = notesService.addNote(createNoteRequest);
+        NotesResponse notesResponse = new NotesResponse();
+        notesResponse.setTitle(EncryptionUtil.decrypt(notes.getTitle()));
+        notesResponse.setDescription(EncryptionUtil.decrypt(notes.getDescription()));
+        notesResponse.setCreatedOn(notes.getCreatedOn());
+        notesResponse.setUpdatedOn(notes.getUpdatedOn());
+
+        return ResponseEntity.ok(notesResponse );
     }
 
     @GetMapping("/getAll")
@@ -33,38 +42,40 @@ public class NotesController {
         return notesService.getAllNotes();
     }
 
+    @GetMapping("/getAllSecuredNotes")
+    public List<NotesResponse>getAllSecured(){
+        return notesService.getAllSecuredNotes();
+    }
+
     @GetMapping("/get/{id}")
-    public Notes getById(@PathVariable("id") int id){
+    public Notes getById(@PathVariable("id") int id) throws Exception {
         return notesService.getNoteById(id);
     }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<Notes>deleteNote(@PathVariable("id")int id){
+    public ResponseEntity<Notes>deleteNote(@PathVariable("id")int id) throws Exception {
         return ResponseEntity.ok(notesService.delete(id));
     }
 
     @DeleteMapping("deleteSecureNote/{id}")
-    public ResponseEntity<Notes>deleteSecureNote(@PathVariable("id")int id, @RequestParam(required = true) String password){
+    public ResponseEntity<Notes>deleteSecureNote(@PathVariable("id")int id, @RequestParam(required = true) String password) throws Exception {
 
         return ResponseEntity.ok(notesService.deleteSecuredNote(id, password));
     }
 
     @PutMapping("/update/{id}")
-    public ResponseEntity<Notes>updateNote(@PathVariable("id")int id,  @RequestBody CreateNoteRequest createNoteRequest){
+    public ResponseEntity<NotesResponse>updateNote(@PathVariable("id")int id,  @RequestBody CreateNoteRequest createNoteRequest) throws Exception {
         return ResponseEntity.ok(notesService.update(id, createNoteRequest));
     }
 
     @PutMapping("updateSecureNote/{id}")
-    public ResponseEntity<Notes>updateSecureNote(@PathVariable("id")int id,
+    public ResponseEntity<NotesResponse>updateSecureNote(@PathVariable("id")int id,
                                                  @RequestParam(required = true) String password,
-                                                 @RequestBody CreateNoteRequest createNoteRequest){
+                                                 @RequestBody CreateNoteRequest createNoteRequest) throws Exception {
 
 
         return ResponseEntity.ok(notesService.updateSecuredNote(id, password, createNoteRequest));
     }
-
-
-
 
     @PutMapping("/setpassword/{id}")
     public ResponseEntity<Notes> setPasswordForNote(@PathVariable int id, @RequestBody CreateNoteRequest createNoteRequest) {
@@ -72,12 +83,12 @@ public class NotesController {
     }
 
     @GetMapping("/getByIdPassword/{id}")
-    public ResponseEntity<Notes> getNoteByIdAndPassword(@PathVariable int id, @RequestBody CreateNoteRequest createNoteRequest) {
+    public ResponseEntity<NotesResponse> getNoteByIdAndPassword(@PathVariable int id, @RequestBody CreateNoteRequest createNoteRequest) throws Exception {
         return ResponseEntity.ok(notesService.getNoteByIdAndPassword(id, createNoteRequest));
     }
 
     @GetMapping("/search/{searchKey}")
-    public ResponseEntity<List<Notes>>search(@PathVariable("searchKey")String searchKey){
+    public ResponseEntity<List<NotesResponse>>search(@PathVariable("searchKey")String searchKey) throws Exception {
         User loggedInUser = (User)ourUserDetailService.loadUserByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
 
         return ResponseEntity.ok(notesService.search(searchKey, loggedInUser.getUserId()));

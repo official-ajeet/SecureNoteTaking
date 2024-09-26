@@ -38,6 +38,7 @@ public class User  implements UserDetails {
     private String role;
 
     private String otp;
+
     private boolean active;
     private LocalDateTime otpGenerationTime;
 
@@ -54,8 +55,6 @@ public class User  implements UserDetails {
 
 //    @OneToMany(mappedBy = "myUser") // Specify mappedBy property
 //    private List<Notes> notesList;  // One-to-Many relationship with Notes
-
-
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

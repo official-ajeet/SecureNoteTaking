@@ -6,8 +6,6 @@ import com.securenotes.model.Tasks;
 import com.securenotes.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.config.Task;
-import org.springframework.scheduling.config.TaskNamespaceHandler;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;

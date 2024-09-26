@@ -9,6 +9,7 @@ import com.securenotes.repository.NotesRepository;
 import com.securenotes.repository.TokenRepository;
 import com.securenotes.repository.UserRepository;
 import com.securenotes.utils.EmailUtil;
+import com.securenotes.utils.EncryptionUtil;
 import com.securenotes.utils.JWTUtils;
 import com.securenotes.utils.OtpUtil;
 import jakarta.mail.MessagingException;
@@ -57,20 +58,14 @@ public class UserService {
     @Autowired
     ExecutorService executorService;
 
-    public UserResponse create(CreateUserRequest createUserRequest){
-        User existingUser = userRepository.findByEmail(createUserRequest.getEmail());
+    public UserResponse create(CreateUserRequest createUserRequest) throws Exception {
         UserResponse userResponse = new UserResponse();
-        if(existingUser != null){
-            userResponse.setMessage("Email Already Exists!");
-            return userResponse;
-        }
-
         //otp related stuff
         String otp = otpUtil.generateOtp();
 
         User user = new User();
-        user.setEmail(createUserRequest.getEmail());
-        user.setName(createUserRequest.getName());
+        user.setEmail(EncryptionUtil.encrypt(createUserRequest.getEmail()));
+        user.setName(EncryptionUtil.encrypt(createUserRequest.getName()));
         user.setRole(createUserRequest.getRole());
         user.setPassword(passwordEncoder.encode(createUserRequest.getPassword()));
         user.setOtp(passwordEncoder.encode(otp));
@@ -100,8 +95,11 @@ public class UserService {
         });
 
 
-        userResponse.setMessage("Sign up successfull!!");
-        userResponse.setUser(user);
+
+//        userResponse.setUser(user);
+        userResponse = UserResponse.to(user);
+        userResponse.setMessage("Sign up successfully. Otp sent to Registered Email, Verify account and login...");
+
         User userResult =userRepository.save(user);
         return userResponse;
     }
@@ -115,16 +113,18 @@ public class UserService {
     }
 
 
-    public LoginResponse login(LoginRequest loginRequest) {
+    public LoginResponse login(LoginRequest loginRequest) throws Exception {
 
         LoginResponse loginResponse = new LoginResponse();
-        try{
-             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(),loginRequest.getPassword()));
-        }catch (AuthenticationException e){
-            loginResponse.setMessage("Wrong email or password");
-            return loginResponse;
-        }
-        var user = userRepository.findByEmail(loginRequest.getEmail());
+//        try{
+//             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(),loginRequest.getPassword()));
+//        }catch (AuthenticationException e){
+//            loginResponse.setMessage("Wrong email or password");
+//            return loginResponse;
+//        }
+        String encryptedEmail = EncryptionUtil.encrypt(loginRequest.getEmail());
+        System.out.println(encryptedEmail+"this is encrypted email");
+        var user = userRepository.findByEmail(encryptedEmail);
         var jwt = jwtUtils.generateToken(user);
         var refreshToken = jwtUtils.generateRefreshToken(new HashMap<>(), user);
 
@@ -167,8 +167,9 @@ public class UserService {
     }
 
     //verification related
-    public String verifyAccount(String email, String otp) {
-        User user = userRepository.findByEmail(email);
+    public String verifyAccount(String email, String otp) throws Exception {
+        String encryptedEmail = EncryptionUtil.encrypt(email);
+        User user = userRepository.findByEmail(encryptedEmail);
         if(user == null){
             return "User not found with this email: "+email;
         }
@@ -183,8 +184,9 @@ public class UserService {
         return "Please regenerate otp and try again";
     }
 
-    public String regenerateOtp(String email) {
-        User user = userRepository.findByEmail(email);
+    public String regenerateOtp(String email) throws Exception {
+        String encryptedEmail = EncryptionUtil.encrypt(email);
+        User user = userRepository.findByEmail(encryptedEmail);
         if(user == null){
             return "User not found with this email: "+email;
         }
