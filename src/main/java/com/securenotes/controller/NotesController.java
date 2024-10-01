@@ -78,7 +78,7 @@ public class NotesController {
     }
 
     @PutMapping("/setpassword/{id}")
-    public ResponseEntity<Notes> setPasswordForNote(@PathVariable int id, @RequestBody CreateNoteRequest createNoteRequest) {
+    public ResponseEntity<NotesResponse> setPasswordForNote(@PathVariable int id, @RequestBody CreateNoteRequest createNoteRequest) throws Exception {
         return ResponseEntity.ok(notesService.setPasswordForNote(id,createNoteRequest));
     }
 

@@ -167,7 +167,7 @@ public class NotesService {
         }
     }
 
-    public Notes setPasswordForNote(int notesId, CreateNoteRequest createNoteRequest) {
+    public NotesResponse setPasswordForNote(int notesId, CreateNoteRequest createNoteRequest) throws Exception {
         User loggedInUser = (User) ourUserDetailService.loadUserByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
 
         Notes note = notesRepository.findById(notesId).orElse(null);
@@ -177,7 +177,11 @@ public class NotesService {
         }
 
         note.setPassword(passwordEncoder.encode(createNoteRequest.getPassword()));
-        return notesRepository.save(note);
+        note = notesRepository.save(note);
+        NotesResponse notesResponse = new NotesResponse();
+        notesResponse = NotesResponse.to(note);
+        notesResponse.setMessage("Password added successfully to the note.");
+        return notesResponse;
     }
 
     public NotesResponse getNoteByIdAndPassword(int notesId, CreateNoteRequest createNoteRequest) throws Exception {
@@ -200,15 +204,15 @@ public class NotesService {
 
                 List<NotesResponse> notesResponses = allNotes.stream().map(note -> {
                     try {
-                        return NotesResponse.to(note);
+                        return NotesResponse.to(note);//to function consist decryption logic
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
-                }).collect(Collectors.toList());
+                }).toList();
 
         for (NotesResponse note : notesResponses) {
-            String title = EncryptionUtil.decrypt(note.getTitle());
-            String description = EncryptionUtil.decrypt(note.getDescription());
+            String title = note.getTitle();
+            String description = note.getDescription();
             if (title.toLowerCase().contains(searchKey.toLowerCase()) ||
                     description.toLowerCase().contains(searchKey.toLowerCase())) {
                 searchResults.add(note);
