@@ -41,6 +41,11 @@ public class NotesService {
         notes.setTitle(EncryptionUtil.encrypt(createNoteRequest.getTitle()));
         notes.setUserId(loggedInUser.getUserId());
         notes.setDescription(EncryptionUtil.encrypt(createNoteRequest.getDescription()));
+        if(createNoteRequest.getPassword() != null && !createNoteRequest.getPassword().isEmpty()){
+            notes.setPassword(passwordEncoder.encode(createNoteRequest.getPassword()));
+        }else{
+            notes.setPassword(null);
+        }
 
         return notesRepository.save(notes);
     }
@@ -53,7 +58,7 @@ public class NotesService {
         notes.setTitle(decryptedTitle);
         notes.setDescription(decryptedDescription);
 
-        if(notes != null && notes.getUserId() == loggedInUser.getUserId() && notes.getPassword() == null){
+        if(notes.getUserId() == loggedInUser.getUserId() && notes.getPassword() == null){
             return notes;
         }else{
             throw new NotesNotFoundException("Note not found or user does not have permission to access the note");
@@ -67,7 +72,7 @@ public class NotesService {
         String decryptedDescription = EncryptionUtil.decrypt(notes.getDescription());
         notes.setTitle(decryptedTitle);
         notes.setDescription(decryptedDescription);
-        if(notes != null && notes.getUserId() == loggedInUser.getUserId()){
+        if(notes.getUserId() == loggedInUser.getUserId()){
             return notes;
         }else{
             throw new NotesNotFoundException("Note not found or user does not have permission to access the note");
@@ -77,7 +82,9 @@ public class NotesService {
     public List<Notes> getAllNotes(){
         User loggedInUser = (User) ourUserDetailService.loadUserByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        List<Notes> encryptedNotes = notesRepository.findAllNotesWithoutPasswordByUserId(loggedInUser.getUserId());
+//        List<Notes> encryptedNotes = notesRepository.findAllNotesWithoutPasswordByUserId(loggedInUser.getUserId());
+        List<Notes> encryptedNotes = notesRepository.findAllNotesByUserId(loggedInUser.getUserId());
+
         List<Notes> decryptedNotes = encryptedNotes.stream()
                 .map(notes -> {
                     try {
@@ -90,6 +97,16 @@ public class NotesService {
                     }
                     return notes;
                 }).collect(Collectors.toList());
+        decryptedNotes.stream()
+                .filter(n -> n.getPassword() != null)
+                .map(n -> {
+                    try {
+                        n.setDescription(EncryptionUtil.encrypt(n.getDescription()));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    return n;
+                }).toList();
 
         return decryptedNotes;
     }
@@ -100,28 +117,65 @@ public class NotesService {
         if (note != null && note.getUserId() == loggedInUser.getUserId() && note.getPassword() == null) {
             notesRepository.deleteById(id); // Delete the note
         }
-        String decryptedTitle = EncryptionUtil.decrypt(note.getTitle());
-        String decryptedDescription = EncryptionUtil.decrypt(note.getDescription());
-        note.setTitle(decryptedTitle);
-        note.setDescription(decryptedDescription);
+//        String decryptedTitle = EncryptionUtil.decrypt(note.getTitle());
+//        String decryptedDescription = EncryptionUtil.decrypt(note.getDescription());
+//        note.setTitle(decryptedTitle);
+//        note.setDescription(decryptedDescription);
         return note; // Return the deleted note or null if not found
     }
 
-    public Notes deleteSecuredNote(int id, String password) throws Exception {
-        User loggedInUser = (User) ourUserDetailService.loadUserByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
-        Notes note = getSecureNoteById(id);
-        if(note != null
-                && note.getPassword() != null
-                && note.getUserId() == loggedInUser.getUserId()
-                && passwordEncoder.matches(password, note.getPassword())){
-            notesRepository.deleteById(id);
-        }
-        String decryptedTitle = EncryptionUtil.decrypt(note.getTitle());
-        String decryptedDescription = EncryptionUtil.decrypt(note.getDescription());
-        note.setTitle(decryptedTitle);
-        note.setDescription(decryptedDescription);
-        return note;
+//    public Notes deleteSecuredNote(int id, String password) throws Exception {
+//        User loggedInUser = (User) ourUserDetailService.loadUserByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
+//        Notes note = getSecureNoteById(id);
+//        if(note != null
+//                && note.getPassword() != null
+//                && note.getUserId() == loggedInUser.getUserId()
+//                && passwordEncoder.matches(password, note.getPassword())){
+//            notesRepository.deleteById(id);
+//        }
+//        String decryptedTitle = EncryptionUtil.decrypt(note.getTitle());
+//        String decryptedDescription = EncryptionUtil.decrypt(note.getDescription());
+//        note.setTitle(decryptedTitle);
+//        note.setDescription(decryptedDescription);
+//        return note;
+//    }
+public Notes deleteSecuredNote(int id, String password) throws Exception {
+    // Get the currently logged-in user
+    User loggedInUser = (User) ourUserDetailService.loadUserByUsername(
+            SecurityContextHolder.getContext().getAuthentication().getName()
+    );
+
+    // Retrieve the secured note by ID
+    Notes note = getSecureNoteById(id);
+
+    // Check if the note exists
+    if (note == null) {
+        throw new Exception("Note not found");
     }
+
+    // Validate the note's ownership, password existence, and password match
+    if (note.getPassword() != null &&
+            note.getUserId() == loggedInUser.getUserId() &&
+            note.getPassword().equals(password)
+//            passwordEncoder.matches(password, note.getPassword())
+    ) {
+        // Delete the note
+        notesRepository.deleteById(id);
+
+        // Decrypt the note details
+//        String decryptedTitle = EncryptionUtil.decrypt(note.getTitle());
+//        String decryptedDescription = EncryptionUtil.decrypt(note.getDescription());
+//        note.setTitle(decryptedTitle);
+//        note.setDescription(decryptedDescription);
+
+        // Return the decrypted note
+        return note;
+    } else {
+        // Throw an exception for unauthorized access
+        throw new Exception("Unauthorized access or invalid password");
+    }
+}
+
 
     public NotesResponse update(int id, CreateNoteRequest createNoteRequest) throws Exception {
         User loggedInUser = (User) ourUserDetailService.loadUserByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
@@ -129,8 +183,13 @@ public class NotesService {
         if(notes != null&&notes.getUserId() == loggedInUser.getUserId() && notes.getPassword() == null){
             notes.setTitle(EncryptionUtil.encrypt(createNoteRequest.getTitle()));
             notes.setDescription(EncryptionUtil.encrypt(createNoteRequest.getDescription()));
-            if (createNoteRequest.getPassword() != null) {
+//            if (createNoteRequest.getPassword() != null) {
+//                notes.setPassword(passwordEncoder.encode(createNoteRequest.getPassword()));
+//            }
+            if(createNoteRequest.getPassword() != null && !createNoteRequest.getPassword().isEmpty()){
                 notes.setPassword(passwordEncoder.encode(createNoteRequest.getPassword()));
+            }else{
+                notes.setPassword(null);
             }
             notes =  notesRepository.save(notes);
             NotesResponse notesResponse = new NotesResponse();
@@ -151,9 +210,14 @@ public class NotesService {
                 && passwordEncoder.matches(password,notes.getPassword())){
             notes.setTitle(EncryptionUtil.encrypt(createNoteRequest.getTitle()));
             notes.setDescription(EncryptionUtil.encrypt(createNoteRequest.getDescription()));
-            if (createNoteRequest.getPassword() != null) {
+//            if (createNoteRequest.getPassword() != null) {
+//                notes.setPassword(passwordEncoder.encode(createNoteRequest.getPassword()));
+//            }else if(createNoteRequest.getPassword() == null || createNoteRequest.getPassword().isEmpty() || createNoteRequest.getPassword().isBlank()){
+//                notes.setPassword(null);
+//            }
+            if(createNoteRequest.getPassword() != null && !createNoteRequest.getPassword().isEmpty()){
                 notes.setPassword(passwordEncoder.encode(createNoteRequest.getPassword()));
-            }else if(createNoteRequest.getPassword() == null || createNoteRequest.getPassword().isEmpty() || createNoteRequest.getPassword().isBlank()){
+            }else{
                 notes.setPassword(null);
             }
             notes = notesRepository.save(notes);
@@ -184,15 +248,14 @@ public class NotesService {
         return notesResponse;
     }
 
-    public NotesResponse getNoteByIdAndPassword(int notesId, CreateNoteRequest createNoteRequest) throws Exception {
+    public NotesResponse getNoteByIdAndPassword(int notesId, String password) throws Exception {
         Notes existingNote = notesRepository.findByNotesId(notesId);
-        String encodePassword = passwordEncoder.encode(createNoteRequest.getPassword());
+        String encodePassword = passwordEncoder.encode(password);
         String notePassword = existingNote.getPassword();
         User loggedInUser = (User)ourUserDetailService.loadUserByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        if(passwordEncoder.matches(createNoteRequest.getPassword(), notePassword) && existingNote.getUserId() == loggedInUser.getUserId()){
-           NotesResponse notesResponse = NotesResponse.to(existingNote);
-            return notesResponse;
+        if(passwordEncoder.matches(password, notePassword) && existingNote.getUserId() == loggedInUser.getUserId()){
+            return NotesResponse.to(existingNote);
         }else{
             throw new NotesNotFoundException("Notes not found or not have permission for this note");
         }
@@ -232,7 +295,17 @@ public class NotesService {
         List<NotesResponse>notesResponses = notes.stream()
                 .map(note -> {
                     NotesResponse notesResponse = new NotesResponse();
-                    notesResponse.setTitle(note.getTitle());
+//                    try {
+//                        notesResponse = NotesResponse.to(note);
+//                    } catch (Exception e) {
+//                        throw new RuntimeException(e);
+//                    }
+                    try {
+                        notesResponse.setTitle(EncryptionUtil.decrypt(note.getTitle()));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    notesResponse.setNotesId(note.getNotesId());
                     notesResponse.setDescription(note.getDescription());
                     notesResponse.setCreatedOn(note.getCreatedOn());
                     notesResponse.setUpdatedOn(note.getUpdatedOn());

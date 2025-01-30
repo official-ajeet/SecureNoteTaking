@@ -19,6 +19,9 @@ public interface NotesRepository extends JpaRepository<Notes, Integer> {
     @Query("select n from Notes n where n.userId = :loggedInUserId and (n.password is not null  and n.password != '')")
     List<Notes> findAllSecuredNotes(int loggedInUserId);
 
+    @Query("select n from Notes n where n.userId = :userId ")
+    List<Notes> findAllNotesByUserId(int userId);
+
     //The % appended to the :title acts as a wildcard,
     //allowing matches where the search term appears anywhere in the title.
 

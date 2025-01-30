@@ -21,6 +21,7 @@ public class Notes {
     private int notesId;
 
     private String title;
+    @Column(length = 60000)
     private String description;
 
     @CreationTimestamp

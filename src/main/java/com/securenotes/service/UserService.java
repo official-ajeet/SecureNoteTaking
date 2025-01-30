@@ -64,7 +64,8 @@ public class UserService {
         String otp = otpUtil.generateOtp();
 
         User user = new User();
-        user.setEmail(EncryptionUtil.encrypt(createUserRequest.getEmail()));
+//        createUserRequest.setEmail(createUserRequest.getEmail().toLowerCase());
+        user.setEmail(EncryptionUtil.encrypt(createUserRequest.getEmail().toLowerCase()));
         user.setName(EncryptionUtil.encrypt(createUserRequest.getName()));
         user.setRole(createUserRequest.getRole());
         user.setPassword(passwordEncoder.encode(createUserRequest.getPassword()));
@@ -113,39 +114,68 @@ public class UserService {
     }
 
 
+    // Login logic in the service layer
     public LoginResponse login(LoginRequest loginRequest) throws Exception {
-
         LoginResponse loginResponse = new LoginResponse();
-//        try{
-//             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(),loginRequest.getPassword()));
-//        }catch (AuthenticationException e){
-//            loginResponse.setMessage("Wrong email or password");
-//            return loginResponse;
-//        }
-        String encryptedEmail = EncryptionUtil.encrypt(loginRequest.getEmail());
-        System.out.println(encryptedEmail+"this is encrypted email");
-        var user = userRepository.findByEmail(encryptedEmail);
-        var jwt = jwtUtils.generateToken(user);
-        var refreshToken = jwtUtils.generateRefreshToken(new HashMap<>(), user);
 
-        if(!user.isActive()){
-            loginResponse.setMessage("Email is not verified yet, Please verify and retry!");
-            return loginResponse;
-        }
+        // Encrypt the email for lookup
+//        loginRequest.setEmail(loginRequest.getEmail().toLowerCase());
 
+        String encryptedEmail = EncryptionUtil.encrypt(loginRequest.getEmail().toLowerCase());
+        User user = userRepository.findByEmail(encryptedEmail);
 
-        //revoke all tokens for a user
+        // Generate JWT and Refresh Token
+        String jwt = jwtUtils.generateToken(user);
+        String refreshToken = jwtUtils.generateRefreshToken(new HashMap<>(), user);
+
+        // Revoke all previous tokens for the user
         revokeAllTokensByUser(user);
-        //save token to db
+
+        // Save the new tokens to the database
         saveUserToken(user, jwt, refreshToken);
 
+        // Set response details
         loginResponse.setToken(jwt);
-        loginResponse.setMessage("Login Successfully!");
         loginResponse.setRefreshToken(refreshToken);
         loginResponse.setRole(user.getRole());
+        loginResponse.setMessage("Login successful!");
 
-        return  loginResponse;
+        return loginResponse;
     }
+
+//    public LoginResponse login(LoginRequest loginRequest) throws Exception {
+//
+//        LoginResponse loginResponse = new LoginResponse();
+////        try{
+////             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(),loginRequest.getPassword()));
+////        }catch (AuthenticationException e){
+////            loginResponse.setMessage("Wrong email or password");
+////            return loginResponse;
+////        }
+//        String encryptedEmail = EncryptionUtil.encrypt(loginRequest.getEmail());
+//        System.out.println(encryptedEmail+"this is encrypted email");
+//        var user = userRepository.findByEmail(encryptedEmail);
+//        var jwt = jwtUtils.generateToken(user);
+//        var refreshToken = jwtUtils.generateRefreshToken(new HashMap<>(), user);
+//
+//        if(!user.isActive()){
+//            loginResponse.setMessage("Email is not verified yet, Please verify and retry!");
+//            return loginResponse;
+//        }
+//
+//
+//        //revoke all tokens for a user
+//        revokeAllTokensByUser(user);
+//        //save token to db
+//        saveUserToken(user, jwt, refreshToken);
+//
+//        loginResponse.setToken(jwt);
+//        loginResponse.setMessage("Login Successfully!");
+//        loginResponse.setRefreshToken(refreshToken);
+//        loginResponse.setRole(user.getRole());
+//
+//        return  loginResponse;
+//    }
 
     private void saveUserToken(User user, String jwt, String refreshToken) {
         Token token = new Token();
@@ -168,7 +198,7 @@ public class UserService {
 
     //verification related
     public String verifyAccount(String email, String otp) throws Exception {
-        String encryptedEmail = EncryptionUtil.encrypt(email);
+        String encryptedEmail = EncryptionUtil.encrypt(email.toLowerCase());
         User user = userRepository.findByEmail(encryptedEmail);
         if(user == null){
             return "User not found with this email: "+email;
@@ -185,7 +215,7 @@ public class UserService {
     }
 
     public String regenerateOtp(String email) throws Exception {
-        String encryptedEmail = EncryptionUtil.encrypt(email);
+        String encryptedEmail = EncryptionUtil.encrypt(email.toLowerCase());
         User user = userRepository.findByEmail(encryptedEmail);
         if(user == null){
             return "User not found with this email: "+email;

@@ -18,7 +18,7 @@ import java.util.Date;
 @Builder
 @JsonInclude(value = JsonInclude.Include.NON_NULL)
 public class NotesResponse {
-//    private int notesId;
+    private int notesId;
     private String title;
     private String description;
     private String message;
@@ -41,6 +41,7 @@ public class NotesResponse {
 
     public static NotesResponse to (Notes notes) throws Exception {
         return NotesResponse.builder()
+                .notesId(notes.getNotesId())
                 .title(EncryptionUtil.decrypt(notes.getTitle()))
                 .description(EncryptionUtil.decrypt(notes.getDescription()))
                 .createdOn(notes.getCreatedOn())

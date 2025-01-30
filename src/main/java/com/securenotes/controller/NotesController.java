@@ -29,6 +29,7 @@ public class NotesController {
     public ResponseEntity<NotesResponse> addNote(@RequestBody CreateNoteRequest createNoteRequest) throws Exception {
         Notes notes = notesService.addNote(createNoteRequest);
         NotesResponse notesResponse = new NotesResponse();
+        notesResponse.setNotesId(notes.getNotesId());
         notesResponse.setTitle(EncryptionUtil.decrypt(notes.getTitle()));
         notesResponse.setDescription(EncryptionUtil.decrypt(notes.getDescription()));
         notesResponse.setCreatedOn(notes.getCreatedOn());
@@ -83,8 +84,8 @@ public class NotesController {
     }
 
     @GetMapping("/getByIdPassword/{id}")
-    public ResponseEntity<NotesResponse> getNoteByIdAndPassword(@PathVariable int id, @RequestBody CreateNoteRequest createNoteRequest) throws Exception {
-        return ResponseEntity.ok(notesService.getNoteByIdAndPassword(id, createNoteRequest));
+    public ResponseEntity<NotesResponse> getNoteByIdAndPassword(@PathVariable int id, @RequestParam String password) throws Exception {
+        return ResponseEntity.ok(notesService.getNoteByIdAndPassword(id, password));
     }
 
     @GetMapping("/search/{searchKey}")

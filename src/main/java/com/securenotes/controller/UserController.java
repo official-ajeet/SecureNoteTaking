@@ -9,6 +9,7 @@ import com.securenotes.repository.UserRepository;
 import com.securenotes.service.UserService;
 import com.securenotes.utils.EncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -34,8 +35,8 @@ public class UserController {
 
     @PostMapping("/signup")
     public ResponseEntity<UserResponse>signUp(@RequestBody CreateUserRequest createUserRequest) throws Exception {
-
-        User existingUser = userRepository.findByEmail(createUserRequest.getEmail());
+        String encryptedEmail = EncryptionUtil.encrypt(createUserRequest.getEmail());
+        User existingUser = userRepository.findByEmail(encryptedEmail);
         if(existingUser != null){
             UserResponse userResponse = new UserResponse();
             userResponse.setMessage("Email Already Exists!");
@@ -57,19 +58,56 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse>login(@RequestBody LoginRequest loginRequest) throws Exception {
-        String encryptedEmail = EncryptionUtil.encrypt(loginRequest.getEmail());
-
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
         LoginResponse loginResponse = new LoginResponse();
-        try{
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(encryptedEmail,loginRequest.getPassword()));
-        }catch (AuthenticationException e){
-            loginResponse.setMessage("Wrong email or password");
-            return ResponseEntity.status(HttpStatusCode.valueOf(401)).body(loginResponse);
+        try {
+            // Encrypt the email for lookup
+            String encryptedEmail = EncryptionUtil.encrypt(loginRequest.getEmail().toLowerCase());
+            User user = userRepository.findByEmail(encryptedEmail);
+
+            // Check if the user is active
+            if (!user.isActive()) {
+                loginResponse.setMessage("Email is not verified yet, please verify and retry!");
+
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(loginResponse);
+            }
+
+            // Authenticate user credentials
+            authenticateUser(encryptedEmail, loginRequest.getPassword());
+
+            // Process login and return response
+            return ResponseEntity.ok(userService.login(loginRequest));
+        } catch (AuthenticationException e) {
+            loginResponse.setMessage("Invalid email or password.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(loginResponse);
+        } catch (Exception e) {
+            loginResponse.setMessage("An unexpected error occurred. Please try again later.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(loginResponse);
         }
-        return ResponseEntity.ok(userService.login(loginRequest));
     }
 
+    private void authenticateUser(String email, String password) throws AuthenticationException {
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, password));
+    }
 
+//    @PostMapping("/login")
+//    public ResponseEntity<LoginResponse>login(@RequestBody LoginRequest loginRequest) throws Exception {
+//        String encryptedEmail = EncryptionUtil.encrypt(loginRequest.getEmail());
+//
+//        LoginResponse loginResponse = new LoginResponse();
+//
+//        User user  = userRepository.findByEmail(encryptedEmail);
+//        if(!user.isActive()){
+//            loginResponse.setMessage("Email is not verified yet, Please verify and retry!");
+//            return ResponseEntity.status(HttpStatusCode.valueOf(401)).body(loginResponse);
+//        }
+//        try{
+//            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(encryptedEmail,loginRequest.getPassword()));
+//        }catch (AuthenticationException e){
+//            loginResponse.setMessage("Wrong email or password");
+//            return ResponseEntity.status(HttpStatusCode.valueOf(401)).body(loginResponse);
+//        }
+//        return ResponseEntity.ok(userService.login(loginRequest));
+//    }
 
 }
