@@ -24,6 +24,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 //@JsonIgnoreProperties("tokens")
+@Table(name = "users")
 public class User  implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
