@@ -8,6 +8,7 @@ import com.securenotes.model.User;
 import com.securenotes.repository.UserRepository;
 import com.securenotes.service.UserService;
 import com.securenotes.utils.EncryptionUtil;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -17,6 +18,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/auth")
@@ -49,6 +52,7 @@ public class UserController {
     @PutMapping("/verify-account")
     public ResponseEntity<String> verifyAccount(@RequestParam String email,
                                                 @RequestParam String otp) throws Exception {
+
         return ResponseEntity.ok(userService.verifyAccount(email, otp));
     }
 
@@ -81,6 +85,7 @@ public class UserController {
             loginResponse.setMessage("Invalid email or password.");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(loginResponse);
         } catch (Exception e) {
+
             loginResponse.setMessage("An unexpected error occurred. Please try again later.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(loginResponse);
         }

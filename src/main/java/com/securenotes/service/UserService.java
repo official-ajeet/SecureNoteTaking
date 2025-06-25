@@ -95,8 +95,6 @@ public class UserService {
             }
         });
 
-
-
 //        userResponse.setUser(user);
         userResponse = UserResponse.to(user);
         userResponse.setMessage("Sign up successfully. Otp sent to Registered Email, Verify account and login...");
@@ -202,6 +200,10 @@ public class UserService {
         User user = userRepository.findByEmail(encryptedEmail);
         if(user == null){
             return "User not found with this email: "+email;
+        }
+        //check if user is already verified
+        if(user.isActive()){
+            return "User already verified.";
         }
         //checking otp from saved otp with entered otp
 

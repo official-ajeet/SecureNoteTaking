@@ -139,6 +139,7 @@ public class NotesService {
 //        note.setDescription(decryptedDescription);
 //        return note;
 //    }
+
 public Notes deleteSecuredNote(int id, String password) throws Exception {
     // Get the currently logged-in user
     User loggedInUser = (User) ourUserDetailService.loadUserByUsername(
@@ -210,11 +211,7 @@ public Notes deleteSecuredNote(int id, String password) throws Exception {
                 && passwordEncoder.matches(password,notes.getPassword())){
             notes.setTitle(EncryptionUtil.encrypt(createNoteRequest.getTitle()));
             notes.setDescription(EncryptionUtil.encrypt(createNoteRequest.getDescription()));
-//            if (createNoteRequest.getPassword() != null) {
-//                notes.setPassword(passwordEncoder.encode(createNoteRequest.getPassword()));
-//            }else if(createNoteRequest.getPassword() == null || createNoteRequest.getPassword().isEmpty() || createNoteRequest.getPassword().isBlank()){
-//                notes.setPassword(null);
-//            }
+
             if(createNoteRequest.getPassword() != null && !createNoteRequest.getPassword().isEmpty()){
                 notes.setPassword(passwordEncoder.encode(createNoteRequest.getPassword()));
             }else{
