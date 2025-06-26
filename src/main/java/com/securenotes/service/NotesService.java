@@ -82,7 +82,6 @@ public class NotesService {
     public List<Notes> getAllNotes(){
         User loggedInUser = (User) ourUserDetailService.loadUserByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
 
-//        List<Notes> encryptedNotes = notesRepository.findAllNotesWithoutPasswordByUserId(loggedInUser.getUserId());
         List<Notes> encryptedNotes = notesRepository.findAllNotesByUserId(loggedInUser.getUserId());
 
         List<Notes> decryptedNotes = encryptedNotes.stream()
