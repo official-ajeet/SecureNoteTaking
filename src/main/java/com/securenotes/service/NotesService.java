@@ -156,8 +156,8 @@ public Notes deleteSecuredNote(int id, String password) throws Exception {
     // Validate the note's ownership, password existence, and password match
     if (note.getPassword() != null &&
             note.getUserId() == loggedInUser.getUserId() &&
-            note.getPassword().equals(password)
-//            passwordEncoder.matches(password, note.getPassword())
+//            note.getPassword().equals(password)
+            passwordEncoder.matches(password, note.getPassword())
     ) {
         // Delete the note
         notesRepository.deleteById(id);
